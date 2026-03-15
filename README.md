@@ -142,7 +142,37 @@ Uses your existing Google account subscription.
 - **Setup:** Run `hydra --login` to authenticate.
 - **Login:** Opens a browser window for Google sign-in.
 - **Auth:** Auto-refreshes tokens and detects your project ID.
-- **Models:** `gemini-2.0-flash`, `gemini-1.5-pro`, etc.
+
+#### Available Models
+
+**Gemini 3.1 Pro** (Latest)
+- `gemini-3.1-pro-low` — Light thinking, fast responses
+- `gemini-3.1-pro-high` — Maximum thinking, best quality
+
+**Gemini 3 Flash**
+- `gemini-3-flash` — Fast, cost-effective (no tier suffix needed)
+
+**Gemini 2.5**
+- `gemini-2.5-flash` — Balanced performance
+- `gemini-2.5-pro` — Pro capabilities (may have capacity limits)
+
+**Claude Models (via Antigravity)**
+- `claude-sonnet-4-6`
+- `claude-opus-4-6-thinking`
+
+> **Important:** Gemini 3.x Pro models require tier suffix (`-low` or `-high`) in Antigravity API. The proxy auto-adds `-low` if omitted. Flash models use bare names.
+
+#### Testing Available Models
+
+To discover which models are currently available in your region/account:
+
+```bash
+# Test Gemini 3.1 Pro variants
+npx tsx test-antigravity-correct-names.ts
+
+# List all Gemini models (public API)
+npx tsx list-gemini-models.ts
+```
 
 ### ChatGPT Backend (`--provider chatgpt`)
 
