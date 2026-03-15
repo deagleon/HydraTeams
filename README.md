@@ -6,18 +6,18 @@ A translation proxy that lets Claude Code Agent Teams use any AI model as a team
 
 One proxy. One env var. Any model.
 
-**Status:** Working. OpenAI + ChatGPT subscription providers tested end-to-end.
+**Status:** Working. OpenAI, ChatGPT subscription, and Google Gemini (Antigravity) providers tested end-to-end.
 
-```
-$ hydra-proxy --model gpt-5.3-codex --provider chatgpt --passthrough lead
+```bash
+$ hydra --model gemini-2.0-flash --provider gemini
 
 ╔══════════════════════════════════════════╗
-║           HydraProxy v0.1.0              ║
+║           HydraProxy v0.2.0              ║
 ╠══════════════════════════════════════════╣
 ║  Port:        3456                       ║
-║  Target:      gpt-5.3-codex             ║
+║  Target:      gemini-2.0-flash           ║
+║  Provider:    gemini                     ║
 ║  Spoofing as: claude-sonnet-4-6          ║
-║  Passthrough: lead                       ║
 ╚══════════════════════════════════════════╝
 
 Ready. Set ANTHROPIC_BASE_URL=http://localhost:3456 on teammate processes.
@@ -27,7 +27,7 @@ Ready. Set ANTHROPIC_BASE_URL=http://localhost:3456 on teammate processes.
 
 Claude Code Agent Teams spawns teammates as separate Claude Code processes. Each teammate communicates with its LLM via the Anthropic Messages API. HydraTeams is a proxy that intercepts these API calls and translates them to any provider's format.
 
-The teammate is still a **full Claude Code instance** with every tool — Read, Write, Edit, Bash, Glob, Grep, Git. It just doesn't know its brain is GPT instead of Claude.
+The teammate is still a **full Claude Code instance** with every tool — Read, Write, Edit, Bash, Glob, Grep, Git. It just doesn't know its brain is GPT or Gemini instead of Claude.
 
 ```
 ┌─────────────────────┐
@@ -48,14 +48,14 @@ The teammate is still a **full Claude Code instance** with every tool — Read, 
            │
 ┌──────────▼──────────┐
 │    HydraProxy       │    Translates API formats
-│    localhost:3456    │    Anthropic ↔ OpenAI / ChatGPT
+│    localhost:3456    │    Anthropic ↔ OpenAI / Gemini
 │                     │    Streams SSE both ways
 └──────────┬──────────┘
            │
-           │  Chat Completions or Responses API
+           │  Chat Completions, Gemini, or Responses API
            │
 ┌──────────▼──────────┐
-│  GPT-5.3 Codex      │    Any model, any provider
+│  Gemini 2.0 Flash   │    Any model, any provider
 │  (or GPT-4o, etc.)  │    Zero cost via subscription
 └─────────────────────┘
 ```
@@ -64,11 +64,9 @@ The teammate is still a **full Claude Code instance** with every tool — Read, 
 
 **You already have the best agent framework.** Claude Code Agent Teams is a battle-tested multi-agent system with agentic loops, 15+ tools, file-based coordination, task dependency graphs, messaging, plan approval, and graceful shutdown. Building another one is reinventing the wheel. HydraTeams makes Agent Teams model-agnostic instead.
 
-**Real cost savings.** Not every task needs a $15/M token frontier model. Route research to Gemini Flash ($0.01), codegen to Codex ($0.12), architecture to Opus ($0.15). Same team, smart routing, real savings. Or use your ChatGPT Plus subscription and pay **$0 extra**.
+**Real cost savings.** Not every task needs a $15/M token frontier model. Route research to Gemini Flash ($0.01), codegen to Codex ($0.12), architecture to Opus ($0.15). Same team, smart routing, real savings. Or use your ChatGPT Plus or Google Gemini subscription and pay **$0 extra**.
 
 **Zero vendor lock-in.** If OpenAI is down, route through Gemini. If prices change, switch. New model drops? Update one config value.
-
-**Every tool, every capability.** Unlike lightweight agent wrappers, each teammate is a full Claude Code instance. It reads code, writes code, runs tests, uses git, searches files — everything Claude Code does. The proxy only replaces the LLM brain, not the body.
 
 ## Quick Start
 
@@ -84,36 +82,35 @@ npm run build
 npm link
 ```
 
-### Easy CLI (Recommended)
+### 1. Authenticate (Subscription Users)
+
+If you are using a subscription-based provider (ChatGPT Plus or Google Gemini), run the login command once:
 
 ```bash
-# Use any model with auto-detection
-hydra --model qwen-coder-plus
-hydra --model gpt-4o
-hydra --model kimi-k2.5 --provider moonshot
-
-# Show help
-hydra --help
-```
-
-### Manual Start
-
-```bash
-# One-time auth (if you haven't already)
+# For ChatGPT Plus (Codex)
 codex --login
 
-# Start the proxy
-node dist/index.js --model gpt-5.3-codex --provider chatgpt --port 3456 --passthrough lead
+# For Google Gemini / Antigravity
+hydra --login
 ```
 
-### Option B: OpenAI API Key
+### 2. Start the Proxy
+
+Use the `hydra` CLI for a simple setup:
 
 ```bash
+# Use Google Gemini (Subscription)
+hydra --model gemini-2.0-flash --provider gemini
+
+# Use OpenAI API
 export OPENAI_API_KEY=sk-...
-node dist/index.js --model gpt-4o-mini --provider openai --port 3456 --passthrough lead
+hydra --model gpt-4o
+
+# Use local Ollama
+hydra --model deepseek-v3 --provider ollama
 ```
 
-### Using with Claude Code
+### 3. Use with Claude Code
 
 Add `<!-- hydra:lead -->` to your project's `CLAUDE.md` (this tells the proxy which requests are from the lead agent and should passthrough to real Claude).
 
@@ -123,117 +120,76 @@ export ANTHROPIC_BASE_URL=http://localhost:3456
 claude
 ```
 
-The lead runs on real Claude (passthrough). Spawned teammates run on GPT (translated). All tools work.
+The lead runs on real Claude (passthrough). Spawned teammates run on your target model (translated).
 
-## Mixed Team Routing
-
-HydraTeams supports running the lead on your Claude subscription while teammates use a different model:
-
-- **Lead agent** → Detected by `<!-- hydra:lead -->` marker in CLAUDE.md system prompt → Passthrough to real Anthropic API with your subscription auth headers
-- **Teammates** → No marker detected → Translated to target model (GPT, Gemini, etc.)
-
-No API keys needed for the lead — the proxy relays your Claude subscription auth headers directly.
-
-## CLI Options
-
-### hydra (Convenience CLI)
+## CLI Options (`hydra`)
 
 | Flag | Description |
 |---|---|
+| `--login` | Run OAuth flow for Google Gemini authentication |
 | `--model <name>` | Target model (required) |
-| `--provider <name>` | Provider: openai, alibaba, moonshot, deepseek, groq, ollama, chatgpt, gemini, antigravity |
+| `--provider <name>` | Provider: `openai`, `gemini`, `antigravity`, `chatgpt`, `ollama`, `moonshot`, `deepseek`, `groq`, `alibaba` |
 | `--url <url>` | Custom API URL (for OpenAI-compatible APIs) |
 | `--port <port>` | Proxy port (default: 3456) |
 | `--passthrough` | Enable passthrough for lead agent |
-| `--spoof <model>` | Model to report to Claude Code (default: claude-sonnet-4-6) |
-
-### hydra-proxy (Advanced)
-
-| Flag | Env Var | Default | Description |
-|---|---|---|---|
-| `--model` | `HYDRA_TARGET_MODEL` | (required) | Target model for teammates |
-| `--provider` | `HYDRA_TARGET_PROVIDER` | `openai` | Provider: `openai`, `chatgpt`, `gemini`, `antigravity` |
-| `--port` | `HYDRA_PROXY_PORT` | `3456` | Proxy listen port |
-| `--spoof` | `HYDRA_SPOOF_MODEL` | `claude-sonnet-4-6` | Model name reported to Claude Code |
-| `--passthrough` | `HYDRA_PASSTHROUGH` | (none) | Passthrough mode: `lead`, `*`, or comma-separated model names |
+| `--spoof <model>` | Model to report to Claude Code (default: `claude-sonnet-4-6`) |
 
 ## Supported Providers
 
+### Google Gemini / Antigravity (`--provider gemini`)
+
+Uses your existing Google account subscription.
+- **Setup:** Run `hydra --login` to authenticate.
+- **Login:** Opens a browser window for Google sign-in.
+- **Auth:** Auto-refreshes tokens and detects your project ID.
+- **Models:** `gemini-2.0-flash`, `gemini-1.5-pro`, etc.
+
 ### ChatGPT Backend (`--provider chatgpt`)
 
-Uses your ChatGPT Plus subscription via the backend Responses API. Auto-reads auth from `~/.codex/auth.json` (run `codex --login` first).
+Uses your ChatGPT Plus subscription via the backend Responses API.
+- **Setup:** Run `codex --login` first.
+- **Auth:** Auto-reads from `~/.codex/auth.json`.
+- **Models:** `gpt-5-codex`, `gpt-5.3-codex`, etc.
 
-Available models: `gpt-5-codex`, `gpt-5.1-codex`, `gpt-5.2-codex`, `gpt-5.3-codex`, `gpt-5-codex-mini`, `gpt-5.1-codex-mini`
+### OpenAI & Compatible (`--provider openai`, `moonshot`, `deepseek`, etc.)
 
-### OpenAI API (`--provider openai`)
-
-Standard OpenAI Chat Completions API. Requires `OPENAI_API_KEY` env var or codex auth fallback.
-
-Available models: `gpt-4o`, `gpt-4o-mini`, `o3-mini`, etc.
-
-### Google Gemini CLI (`--provider gemini`)
-
-Uses your Google account via Gemini CLI auth. Auto-reads and refreshes tokens from `~/.gemini/oauth_creds.json` (run `gemini auth login` first).
-
-Available models: `gemini-2.0-flash`, `gemini-2.0-flash-exp`, `gemini-1.5-pro`, etc.
-
-### Antigravity IDE (`--provider antigravity`)
-
-Uses the same authentication as the Gemini CLI, optimized for use within the Antigravity environment.
+Standard OpenAI Chat Completions API.
+- **Auth:** Uses provider-specific env vars (e.g., `OPENAI_API_KEY`, `DEEPSEEK_API_KEY`) or reads from `~/.claude/settings.json`.
 
 ## What Works Today
 
-- **OpenAI Chat Completions** — GPT-4o, GPT-4o-mini via API key
-- **ChatGPT Subscription** — GPT-5.3-codex, GPT-5-codex, etc. via ChatGPT Plus ($0 extra cost)
-- **Google Gemini Auth** — Full support for Gemini models via account auth (Gemini CLI)
-- **Mixed team routing** — Lead on real Claude (passthrough), teammates on GPT/Gemini (translated)
-- **System prompt marker** — `<!-- hydra:lead -->` in CLAUDE.md for clean lead/teammate detection
-- **Subscription auth relay** — No API keys needed for lead passthrough
-- **Full agentic tool loops** — Read, Write, Glob, Bash all verified working through proxy
-- **Retry with backoff** — Handles 429 rate limits gracefully (5 retries, exponential backoff)
-- **Non-streaming support** — Handles Claude Code's haiku warmup requests
-- **Token count estimation** — Handles `/v1/messages/count_tokens` endpoint
+- **Google Gemini Auth** — Full support for Gemini models via account auth (`--login`)
+- **ChatGPT Subscription** — GPT Codex models via ChatGPT Plus subscription
+- **OpenAI API** — All GPT models via API key
+- **Mixed team routing** — Lead on real Claude (passthrough), teammates on GPT/Gemini
+- **Full agentic tool loops** — All 15+ Claude Code tools work through translation
+- **Token usage tracking** — Handles usage metadata and token counting
+- **Auto-Retry** — Graceful handling of rate limits (429)
 
 ## Project Structure
 
 ```
 src/
-├── index.ts                    Entry point, ASCII banner
+├── index.ts                    Entry point
+├── cli.ts                      CLI wrapper (hydra)
+├── auth-gemini.ts              Google OAuth PKCE implementation
 ├── proxy.ts                    HTTP server, 3-way routing, passthrough
-├── config.ts                   CLI args, env vars, codex JWT auth
+├── config.ts                   Configuration and auth loading
 └── translators/
-    ├── types.ts                TypeScript interfaces (Anthropic + OpenAI)
-    ├── request.ts              Anthropic → OpenAI Chat Completions
-    ├── messages.ts             Message history translation
-    ├── response.ts             OpenAI Chat Completions SSE → Anthropic SSE
-    ├── request-responses.ts    Anthropic → ChatGPT Responses API
-    └── response-responses.ts   Responses API SSE → Anthropic SSE
+    ├── request-gemini.ts       Anthropic → Google Gemini
+    ├── response-gemini.ts      Gemini SSE → Anthropic SSE
+    ├── request.ts              Anthropic → OpenAI
+    ├── response.ts             OpenAI SSE → Anthropic SSE
+    └── ...                     ChatGPT Responses API translators
 ```
-
-Zero runtime dependencies. TypeScript + Node.js builtins only.
-
-## Roadmap
-
-- Google Gemini translator
-- Ollama translator (mostly OpenAI-compatible)
-- npm publish for `npx hydra-proxy` one-liner
-- Token usage tracking and cost reporting
-- Multi-proxy mode (different models per teammate)
 
 ## Documentation
 
 | Document | Description |
 |----------|-------------|
-| [JOURNEY.md](JOURNEY.md) | The full build story — architecture pivots, debugging, subscription hack |
+| [JOURNEY.md](JOURNEY.md) | The full build story — architecture pivots and subscription hacks |
 | [VISION.md](VISION.md) | Why translation beats custom frameworks |
-| [PRINCIPLES.md](PRINCIPLES.md) | Core beliefs guiding every decision |
-| [Architecture](architecture/ARCHITECTURE.md) | Technical spec — API translation maps, SSE stream handling |
-
-## Built With
-
-- [Claude Code Agent Teams](https://docs.anthropic.com/en/docs/claude-code) — The agent framework we make model-agnostic
-- [HydraMCP](https://github.com/Pickle-Pixel/HydraMCP) — Multi-model AI orchestration (sister project)
-- TypeScript / Node.js — zero external runtime dependencies
+| [Architecture](architecture/ARCHITECTURE.md) | Technical spec — API translation maps |
 
 ## License
 
