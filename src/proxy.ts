@@ -4,6 +4,8 @@ import { translateRequest } from "./translators/request.js";
 import { translateStream } from "./translators/response.js";
 import { translateRequestToResponses } from "./translators/request-responses.js";
 import { translateResponsesStream } from "./translators/response-responses.js";
+import { translateRequestToGemini } from "./translators/request-gemini.js";
+import { translateGeminiStream } from "./translators/response-gemini.js";
 import { ProxyLogger } from "./logger.js";
 
 const DEFAULT_OPENAI_URL = "https://api.openai.com/v1/chat/completions";
@@ -188,7 +190,75 @@ export function createProxyServer(config: ProxyConfig): http.Server {
 
       // ─── Route to target provider ───
 
-      if (config.targetProvider === "chatgpt") {
+      if (config.targetProvider === "gemini" || config.targetProvider === "antigravity") {
+        // ─── Google Gemini API via Antigravity (cloudcode-pa) ───
+        const geminiReq = translateRequestToGemini(anthropicReq, config.targetModel);
+
+        const method = isStreaming ? "streamGenerateContent" : "generateContent";
+
+        // Strip -preview suffixes for Antigravity, as it uses the base name natively
+        const antigravityModel = config.targetModel
+          .replace(/-preview-customtools$/i, "")
+          .replace(/-preview$/i, "");
+
+        const geminiUrl = `https://daily-cloudcode-pa.sandbox.googleapis.com/v1internal:${method}${isStreaming ? "?alt=sse" : ""}`;
+
+        const headers: Record<string, string> = {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${config.geminiAccessToken}`,
+          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Antigravity/1.18.3 Chrome/138.0.7204.235 Electron/37.3.1 Safari/537.36",
+          "X-Goog-Api-Client": "google-cloud-sdk vscode_cloudshelleditor/0.1",
+          "Client-Metadata": '{"ideType":"ANTIGRAVITY","platform":"WINDOWS","pluginType":"GEMINI"}',
+        };
+
+        const antigravityBody = {
+          project: config.geminiProjectId || "rising-fact-p41fc", // Fallback to default if loadCodeAssist failed
+          model: antigravityModel,
+          request: geminiReq,
+          userAgent: "antigravity",
+        };
+
+        const upstream = await fetch(geminiUrl, {
+          method: "POST",
+          headers,
+          body: JSON.stringify(antigravityBody),
+        });
+
+        if (!upstream.ok) {
+          const errText = await upstream.text();
+          logger.logError(session, `Gemini ${upstream.status}: ${errText.slice(0, 300)}`);
+          res.writeHead(upstream.status, { "Content-Type": "application/json" });
+          res.end(JSON.stringify({ type: "error", error: { type: "api_error", message: errText } }));
+          return;
+        }
+
+        if (isStreaming) {
+          if (!upstream.body) {
+            logger.logError(session, "No response body from Gemini");
+            res.writeHead(500, { "Content-Type": "application/json" });
+            res.end(JSON.stringify({ type: "error", error: { type: "api_error", message: "No response body" } }));
+            return;
+          }
+          res.writeHead(200, { "Content-Type": "text/event-stream", "Cache-Control": "no-cache", Connection: "keep-alive" });
+          await translateGeminiStream(upstream.body, res, config.spoofModel);
+        } else {
+          // Handle non-streaming Gemini response (rare in Claude Code but good for completeness)
+          let data = await upstream.json() as any;
+          if (data.response) data = data.response; // Unwrap Antigravity wrapper
+          const text = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
+          res.writeHead(200, { "Content-Type": "application/json" });
+          res.end(JSON.stringify({
+            id: `msg_${Date.now()}`,
+            type: "message",
+            role: "assistant",
+            model: config.spoofModel,
+            content: [{ type: "text", text }],
+            stop_reason: "end_turn",
+            usage: { input_tokens: 0, output_tokens: 0 }
+          }));
+        }
+
+      } else if (config.targetProvider === "chatgpt") {
         // ─── ChatGPT Backend (Responses API) ───
         const responsesReq = translateRequestToResponses(anthropicReq, config.targetModel);
 

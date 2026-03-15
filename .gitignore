@@ -3,3 +3,14 @@ dist/
 *.js.map
 .env
 *.tgz
+
+# Logs e arquivos temporários
+*.log
+logs/
+proxy-out.txt
+sse-output.txt
+test-*-proxy.txt
+
+# Configurações locais
+*.local.json
+.claude/

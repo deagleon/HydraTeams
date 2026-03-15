@@ -164,7 +164,7 @@ export interface OpenAIStreamToolCall {
 export interface ProxyConfig {
   port: number;
   targetModel: string;
-  targetProvider: "openai" | "chatgpt" | "google" | "ollama";
+  targetProvider: "openai" | "chatgpt" | "google" | "ollama" | "gemini" | "antigravity";
   targetUrl?: string;
   openaiApiKey: string;
   spoofModel: string;
@@ -172,6 +172,8 @@ export interface ProxyConfig {
   anthropicApiKey?: string;
   chatgptAccessToken?: string;
   chatgptAccountId?: string;
+  geminiAccessToken?: string;
+  geminiProjectId?: string;
 }
 
 // ─── Stream Translation State ────────────────────────────────

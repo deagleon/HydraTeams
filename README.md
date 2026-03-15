@@ -16,7 +16,7 @@ $ hydra-proxy --model gpt-5.3-codex --provider chatgpt --passthrough lead
 ╠══════════════════════════════════════════╣
 ║  Port:        3456                       ║
 ║  Target:      gpt-5.3-codex             ║
-║  Spoofing as: claude-sonnet-4-5-20250929 ║
+║  Spoofing as: claude-sonnet-4-6          ║
 ║  Passthrough: lead                       ║
 ╚══════════════════════════════════════════╝
 
@@ -73,14 +73,30 @@ The teammate is still a **full Claude Code instance** with every tool — Read, 
 ## Quick Start
 
 ```bash
-# Clone and build
+# Install globally
+npm install -g hydra-proxy
+
+# Or clone and link
 git clone https://github.com/Pickle-Pixel/HydraTeams.git
 cd HydraTeams
 npm install
 npm run build
+npm link
 ```
 
-### Option A: ChatGPT Plus Subscription (zero cost)
+### Easy CLI (Recommended)
+
+```bash
+# Use any model with auto-detection
+hydra --model qwen-coder-plus
+hydra --model gpt-4o
+hydra --model kimi-k2.5 --provider moonshot
+
+# Show help
+hydra --help
+```
+
+### Manual Start
 
 ```bash
 # One-time auth (if you haven't already)
@@ -120,12 +136,25 @@ No API keys needed for the lead — the proxy relays your Claude subscription au
 
 ## CLI Options
 
+### hydra (Convenience CLI)
+
+| Flag | Description |
+|---|---|
+| `--model <name>` | Target model (required) |
+| `--provider <name>` | Provider: openai, alibaba, moonshot, deepseek, groq, ollama, chatgpt, gemini, antigravity |
+| `--url <url>` | Custom API URL (for OpenAI-compatible APIs) |
+| `--port <port>` | Proxy port (default: 3456) |
+| `--passthrough` | Enable passthrough for lead agent |
+| `--spoof <model>` | Model to report to Claude Code (default: claude-sonnet-4-6) |
+
+### hydra-proxy (Advanced)
+
 | Flag | Env Var | Default | Description |
 |---|---|---|---|
 | `--model` | `HYDRA_TARGET_MODEL` | (required) | Target model for teammates |
-| `--provider` | `HYDRA_TARGET_PROVIDER` | `openai` | Provider: `openai`, `chatgpt` |
+| `--provider` | `HYDRA_TARGET_PROVIDER` | `openai` | Provider: `openai`, `chatgpt`, `gemini`, `antigravity` |
 | `--port` | `HYDRA_PROXY_PORT` | `3456` | Proxy listen port |
-| `--spoof` | `HYDRA_SPOOF_MODEL` | `claude-sonnet-4-5-20250929` | Model name reported to Claude Code |
+| `--spoof` | `HYDRA_SPOOF_MODEL` | `claude-sonnet-4-6` | Model name reported to Claude Code |
 | `--passthrough` | `HYDRA_PASSTHROUGH` | (none) | Passthrough mode: `lead`, `*`, or comma-separated model names |
 
 ## Supported Providers
@@ -142,11 +171,22 @@ Standard OpenAI Chat Completions API. Requires `OPENAI_API_KEY` env var or codex
 
 Available models: `gpt-4o`, `gpt-4o-mini`, `o3-mini`, etc.
 
+### Google Gemini CLI (`--provider gemini`)
+
+Uses your Google account via Gemini CLI auth. Auto-reads and refreshes tokens from `~/.gemini/oauth_creds.json` (run `gemini auth login` first).
+
+Available models: `gemini-2.0-flash`, `gemini-2.0-flash-exp`, `gemini-1.5-pro`, etc.
+
+### Antigravity IDE (`--provider antigravity`)
+
+Uses the same authentication as the Gemini CLI, optimized for use within the Antigravity environment.
+
 ## What Works Today
 
 - **OpenAI Chat Completions** — GPT-4o, GPT-4o-mini via API key
 - **ChatGPT Subscription** — GPT-5.3-codex, GPT-5-codex, etc. via ChatGPT Plus ($0 extra cost)
-- **Mixed team routing** — Lead on real Claude (passthrough), teammates on GPT (translated)
+- **Google Gemini Auth** — Full support for Gemini models via account auth (Gemini CLI)
+- **Mixed team routing** — Lead on real Claude (passthrough), teammates on GPT/Gemini (translated)
 - **System prompt marker** — `<!-- hydra:lead -->` in CLAUDE.md for clean lead/teammate detection
 - **Subscription auth relay** — No API keys needed for lead passthrough
 - **Full agentic tool loops** — Read, Write, Glob, Bash all verified working through proxy

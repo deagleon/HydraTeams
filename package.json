@@ -1,10 +1,11 @@
 {
   "name": "hydra-proxy",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Translation proxy that makes Claude Code Agent Teams model-agnostic",
   "type": "module",
   "main": "dist/index.js",
   "bin": {
+    "hydra": "dist/cli.js",
     "hydra-proxy": "dist/index.js"
   },
   "scripts": {
