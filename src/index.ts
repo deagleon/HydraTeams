@@ -30,7 +30,8 @@ async function main() {
 ║           HydraProxy v0.1.0              ║
 ╠══════════════════════════════════════════╣
 ║  Port:        ${String(config.port).padEnd(27)}║
-║  Target:      ${config.targetModel.padEnd(27)}║
+║  Lead Model:  ${config.leadModel.padEnd(27)}║
+║  Teammate:    ${config.teammateModel.padEnd(27)}║
 ║  Spoofing as: ${config.spoofModel.padEnd(27)}║
 ║  Passthrough: ${(config.passthroughModels.length ? config.passthroughModels.join(", ") : "none").padEnd(27)}║
 ╚══════════════════════════════════════════╝

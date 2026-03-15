@@ -163,7 +163,8 @@ export interface OpenAIStreamToolCall {
 
 export interface ProxyConfig {
   port: number;
-  targetModel: string;
+  leadModel: string;
+  teammateModel: string;
   targetProvider: "openai" | "chatgpt" | "google" | "ollama" | "gemini" | "antigravity";
   targetUrl?: string;
   openaiApiKey: string;

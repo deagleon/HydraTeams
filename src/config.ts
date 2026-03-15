@@ -65,7 +65,9 @@ export async function loadConfig(args: string[]): Promise<ProxyConfig> {
   };
 
   const port = parseInt(getArg("--port") || process.env.HYDRA_PROXY_PORT || "3456", 10);
-  const targetModel = getArg("--model") || process.env.HYDRA_TARGET_MODEL || "";
+  const model = getArg("--model") || process.env.HYDRA_TARGET_MODEL || "";
+  const leadModel = getArg("--lead-model") || process.env.HYDRA_LEAD_MODEL || model;
+  const teammateModel = getArg("--teammate-model") || process.env.HYDRA_TEAMMATE_MODEL || model;
   const targetProvider = (getArg("--provider") || process.env.HYDRA_TARGET_PROVIDER || "openai") as ProxyConfig["targetProvider"];
   const spoofModel = getArg("--spoof") || process.env.HYDRA_SPOOF_MODEL || "claude-sonnet-4-6";
   const targetUrl = getArg("--target-url") || process.env.HYDRA_TARGET_URL;
@@ -131,8 +133,8 @@ export async function loadConfig(args: string[]): Promise<ProxyConfig> {
     }
   }
 
-  if (!targetModel) {
-    console.error("Error: --model is required (e.g., --model gpt-5.3-codex)");
+  if (!leadModel || !teammateModel) {
+    console.error("Error: --model (or --lead-model and --teammate-model) is required (e.g., --model gpt-5.3-codex)");
     process.exit(1);
   }
 
@@ -140,5 +142,5 @@ export async function loadConfig(args: string[]): Promise<ProxyConfig> {
     console.log("Passthrough enabled — Claude Code auth headers will be relayed to Anthropic API.");
   }
 
-  return { port, targetModel, targetProvider, targetUrl: effectiveTargetUrl, openaiApiKey, spoofModel, passthroughModels, anthropicApiKey, chatgptAccessToken, chatgptAccountId, geminiAccessToken, geminiProjectId };
+  return { port, leadModel, teammateModel, targetProvider, targetUrl: effectiveTargetUrl, openaiApiKey, spoofModel, passthroughModels, anthropicApiKey, chatgptAccessToken, chatgptAccountId, geminiAccessToken, geminiProjectId };
 }

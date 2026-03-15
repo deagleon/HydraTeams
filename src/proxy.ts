@@ -92,7 +92,8 @@ export function createProxyServer(config: ProxyConfig): http.Server {
   const logger = new ProxyLogger();
 
   logger.banner({
-    targetModel: config.targetModel,
+    leadModel: config.leadModel,
+    teammateModel: config.teammateModel,
     spoofModel: config.spoofModel,
     port: config.port,
     provider: config.targetProvider,
@@ -107,7 +108,8 @@ export function createProxyServer(config: ProxyConfig): http.Server {
       res.writeHead(200, { "Content-Type": "application/json" });
       res.end(JSON.stringify({
         status: "ok",
-        targetModel: config.targetModel,
+        leadModel: config.leadModel,
+        teammateModel: config.teammateModel,
         spoofModel: config.spoofModel,
         passthroughModels: config.passthroughModels,
       }));
@@ -167,6 +169,9 @@ export function createProxyServer(config: ProxyConfig): http.Server {
       // Routing: teammates always translate, lead passthrough if configured
       const isPassthrough = !isTeammate && shouldPassthrough(anthropicReq.model, config.passthroughModels, fullText);
 
+      // Select target model based on role
+      const targetModel = isTeammate ? config.teammateModel : config.leadModel;
+
       // Identify agent session
       const session = logger.identify({ toolCount, msgCount, isTeammate, systemText });
 
@@ -180,7 +185,7 @@ export function createProxyServer(config: ProxyConfig): http.Server {
         hasMarker,
         systemLength: systemText.length,
         route: isPassthrough ? "passthrough" : "translate",
-        targetModel: isPassthrough ? undefined : config.targetModel,
+        targetModel: isPassthrough ? undefined : targetModel,
       });
 
       // ─── Passthrough to real Anthropic ───
@@ -192,12 +197,12 @@ export function createProxyServer(config: ProxyConfig): http.Server {
 
       if (config.targetProvider === "gemini" || config.targetProvider === "antigravity") {
         // ─── Google Gemini API via Antigravity (cloudcode-pa) ───
-        const geminiReq = translateRequestToGemini(anthropicReq, config.targetModel);
+        const geminiReq = translateRequestToGemini(anthropicReq, targetModel);
 
         const method = isStreaming ? "streamGenerateContent" : "generateContent";
 
         // Strip -preview suffixes for Antigravity, as it uses the base name natively
-        const antigravityModel = config.targetModel
+        const antigravityModel = targetModel
           .replace(/-preview-customtools$/i, "")
           .replace(/-preview$/i, "");
 
@@ -217,6 +222,11 @@ export function createProxyServer(config: ProxyConfig): http.Server {
           request: geminiReq,
           userAgent: "antigravity",
         };
+
+        // Debug: Log the tools structure when it fails
+        if (geminiReq.tools && geminiReq.tools.length > 0) {
+          logger.logFile(session, `Full Gemini Tools: ${JSON.stringify(geminiReq.tools).slice(0, 500)}`); // Log full tools
+        }
 
         const upstream = await fetch(geminiUrl, {
           method: "POST",
@@ -260,7 +270,7 @@ export function createProxyServer(config: ProxyConfig): http.Server {
 
       } else if (config.targetProvider === "chatgpt") {
         // ─── ChatGPT Backend (Responses API) ───
-        const responsesReq = translateRequestToResponses(anthropicReq, config.targetModel);
+        const responsesReq = translateRequestToResponses(anthropicReq, targetModel);
 
         const MAX_RETRIES = 5;
         let upstream: Response | null = null;
@@ -306,7 +316,7 @@ export function createProxyServer(config: ProxyConfig): http.Server {
       } else {
         // ─── OpenAI Chat Completions ───
         const openaiUrl = config.targetUrl || DEFAULT_OPENAI_URL;
-        const openaiReq = translateRequest(anthropicReq, config.targetModel);
+        const openaiReq = translateRequest(anthropicReq, targetModel);
 
         if (!isStreaming) {
           openaiReq.stream = false;

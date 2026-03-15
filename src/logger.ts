@@ -150,7 +150,8 @@ export class ProxyLogger {
   }
 
   banner(config: {
-    targetModel: string;
+    leadModel: string;
+    teammateModel: string;
     spoofModel: string;
     port: number;
     provider: string;
@@ -159,7 +160,8 @@ export class ProxyLogger {
     console.log(`\n${C.bold}HydraTeams Proxy${C.reset}`);
     console.log(`${C.dim}${"─".repeat(40)}${C.reset}`);
     console.log(`  Port:        ${C.cyan}:${config.port}${C.reset}`);
-    console.log(`  Target:      ${C.yellow}${config.targetModel}${C.reset} (${config.provider})`);
+    console.log(`  Lead:        ${C.yellow}${config.leadModel}${C.reset} (${config.provider})`);
+    console.log(`  Teammate:    ${C.yellow}${config.teammateModel}${C.reset}`);
     console.log(`  Spoof:       ${config.spoofModel}`);
     console.log(`  Passthrough: ${config.passthrough.join(", ") || "none"}`);
     console.log(`  Logs:        ${this.logDir}/`);

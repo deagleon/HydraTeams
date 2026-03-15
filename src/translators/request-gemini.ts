@@ -110,7 +110,7 @@ export function translateRequestToGemini(
         geminiReq.systemInstruction = { parts: [{ text: systemText }] };
     }
 
-    if (anthropicReq.tools) {
+    if (anthropicReq.tools && anthropicReq.tools.length > 0) {
         geminiReq.tools = [{
             functionDeclarations: anthropicReq.tools.map(t => ({
                 name: t.name,

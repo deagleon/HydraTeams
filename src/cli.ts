@@ -38,14 +38,15 @@ ${"\x1b[1m"}HydraTeams - Claude Code with any model${"\x1b[0m"}
 
 ${"\x1b[36m"}Usage:${"\x1b[0m"}
   hydra --model <model> [options]
-  hydra --model qwen-coder-plus
+  hydra --lead-model gemini-1.5-pro --teammate-model gemini-1.5-flash
   hydra --model gpt-4o --provider openai
-  hydra --model kimi-k2.5 --url https://api.moonshot.cn/v1/chat/completions
 
 ${"\x1b[36m"}Options:${"\x1b[0m"}
-  --model <name>      Target model (required)
-  --provider <name>   Provider: openai, alibaba, moonshot, deepseek, groq, ollama, chatgpt
-  --url <url>         Custom API URL (for OpenAI-compatible APIs)
+  --model <name>           Target model for both roles
+  --lead-model <name>      Target model for lead agent
+  --teammate-model <name>  Target model for teammate agents
+  --provider <name>        Provider: openai, alibaba, moonshot, deepseek, groq, ollama, chatgpt
+  --url <url>              Custom API URL (for OpenAI-compatible APIs)
   --port <port>       Proxy port (default: 3456)
   --passthrough       Enable passthrough for lead agent
   --spoof <model>     Model to report to Claude Code (default: claude-sonnet-4-6)
@@ -170,18 +171,19 @@ async function main() {
     process.exit(0);
   }
 
-  if (!opts.model) {
-    console.error("\x1b[31mError: --model is required\x1b[0m");
+  if (!opts.model && !opts["lead-model"] && !opts["teammate-model"]) {
+    console.error("\x1b[31mError: --model (or --lead-model and --teammate-model) is required\x1b[0m");
     console.error("Example: hydra --model qwen-coder-plus");
     process.exit(1);
   }
 
-  // Determine provider
-  let provider = (opts.provider as string) || detectProviderFromModel(opts.model as string);
+  // Determine provider based on lead model
+  const effectiveLeadModel = (opts["lead-model"] || opts.model || "") as string;
+  let provider = (opts.provider as string) || detectProviderFromModel(effectiveLeadModel);
 
   // If no provider specified and not in non-interactive mode, prompt
   if (!opts.provider && process.stdin.isTTY) {
-    console.log(`\n\x1b[33mAuto-detected provider: ${provider}\x1b[0m`);
+    console.log(`\n\x1b[33mAuto-detected provider: ${provider} (from lead model)\x1b[0m`);
     provider = await promptProvider();
   }
 
@@ -190,10 +192,13 @@ async function main() {
   // Build proxy arguments
   const proxyArgs: string[] = [
     "dist/index.js",
-    "--model", opts.model as string,
     "--provider", provider === "chatgpt" ? "chatgpt" : provider === "gemini" || provider === "antigravity" ? provider : "openai",
     "--port", String(opts.port || PORT),
   ];
+
+  if (opts.model) proxyArgs.push("--model", opts.model as string);
+  if (opts["lead-model"]) proxyArgs.push("--lead-model", opts["lead-model"] as string);
+  if (opts["teammate-model"]) proxyArgs.push("--teammate-model", opts["teammate-model"] as string);
 
   // Add URL for OpenAI-compatible providers
   if (provider !== "chatgpt" && provider !== "gemini" && provider !== "antigravity") {
@@ -225,7 +230,8 @@ async function main() {
   console.log(`
 \x1b[1m\x1b[36m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\x1b[0m
   \x1b[1mHydraTeams Proxy\x1b[0m
-  \x1b[2mModel: ${opts.model} | Provider: ${provider}\x1b[0m
+  \x1b[2mLead: ${opts["lead-model"] || opts.model || "none"} | Teammate: ${opts["teammate-model"] || opts.model || "none"}\x1b[0m
+  \x1b[2mProvider: ${provider}\x1b[0m
 \x1b[1m\x1b[36m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\x1b[0m
 `);
 
